@@ -13,7 +13,8 @@
 const int buttonPins[] = {E1_STOMP, E2_STOMP, CYCLE_2B, CYCLE_2F, CYCLE_1B, CYCLE_1F};
 const int knobPins[] = {CONTROL1A, CONTROL1B, CONTROL2A, CONTROL2B};
 
-
+#define LINE_IN_LEVEL 9
+#define OUTPUT_VOLUME 0.3
 #define WAVESHAPE_LENGTH 65
 #define LFO_MAX_FREQ 5
 #define HIGHPASSMAX 7000
@@ -22,11 +23,12 @@ const int knobPins[] = {CONTROL1A, CONTROL1B, CONTROL2A, CONTROL2B};
 #define LOWPASSMIN 10.25
 #define COMBINE_FREQ_MIN 656
 #define COMBINE_FREQ_MAX 5000
-#define CONTROL_CHECK 10
-#define CTRL_SENS 10
+#define CONTROL_CHECK 15
+#define CTRL_SENS 20
 
 // GUItool: begin automatically generated code
 //-------------------------------------------------------------------
+	AudioControlSGTL5000     sgtl5000;     //xy=365,52
 	AudioInputI2S            in;           //xy=73,116
 	AudioSynthWaveformSine   LFO;          //xy=91,436
 	AudioSynthWaveform       waveform;      //xy=97,224
@@ -57,6 +59,10 @@ const int knobPins[] = {CONTROL1A, CONTROL1B, CONTROL2A, CONTROL2B};
 	AudioConnection          patchCord15(effect1, freeverb);
 	AudioConnection          patchCord16(highPass, 2, out, 0);
 	AudioConnection          patchCord17(highPass, 2, out, 1);
-	AudioControlSGTL5000     sgtl5000;     //xy=365,52
+	#ifdef _DEBUGMODE_
+		AudioAnalyzePeak         peak;          //xy=332,113
+		AudioConnection          patchCord18(in, 1, peak, 0);
+	#endif
+	
 // GUItool: end automatically generated code
 //-------------------------------------------------------------------

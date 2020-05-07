@@ -18,13 +18,9 @@
 #include <Audio.h>
 #include <Wire.h>
 #include <SPI.h>
-#include <SD.h>
 #include <SerialFlash.h>
 #include <Bounce.h>
 #include <LiquidCrystal.h>
-
-#include "AudioConnections.h"
-
 
 // debug mode prints the status of the pedal over serial
 //#define _DEBUGMODE_
@@ -32,6 +28,11 @@
 #ifdef _EFFECTDETAILS_
 	#define _DEBUGMODE_
 #endif
+
+
+// More audio objects are created in debug mode like a peak detector,
+//    so we need to #include this after the _DEBUGMODE_ definition
+#include "AudioConnections.h"
 
 
 // Variables and objects
@@ -109,8 +110,8 @@ void setup() {
 	AudioMemory(25);
 	sgtl5000.enable();
 	sgtl5000.inputSelect(AUDIO_INPUT_LINEIN);
-	sgtl5000.lineInLevel(9);
-	sgtl5000.volume(0.3);
+	sgtl5000.lineInLevel(LINE_IN_LEVEL);
+	sgtl5000.volume(OUTPUT_VOLUME);
 
 	setupLFO();
 	setupHighLowPass();
@@ -224,7 +225,7 @@ void loop() {
 	    if (e2Active) {
 	    	switch(e2) {
                 case 0: // reverb
-					wet2 = analogRead(CONTROL2A);
+					wet2 = analogRead(CONTROL2A) / 1023.0;
 					dry2 = 1.0 - wet2;
                     effect2.gain(0, dry2);
                     effect2.gain(1, wet2);
@@ -364,16 +365,20 @@ void loop() {
     		Serial.print(effect2Types[e2]);
     		Serial.print(" || Current E1: ");
     		Serial.print(effect1Types[e1]);
-    		Serial.print(" || Control status: ");
-    		Serial.print(ctrl2A);
-    		Serial.print(" | ");
-    		Serial.print(ctrl2B);
-    		Serial.print(" | ");
-    		Serial.print(ctrl1A);
-    		Serial.print(" | ");
-    		Serial.print(ctrl1B);
-    		Serial.print(" || Memory Usage Max: ");
-    		Serial.print(AudioMemoryUsageMax());
+    		// Serial.print(" || Memory Usage Max: ");
+    		// Serial.print(AudioMemoryUsageMax());
+			Serial.print("|| Mix (w1, d1, w2, d2): ");
+			Serial.print(wet1);
+			Serial.print(" | ");
+			Serial.print(dry1);
+			Serial.print(" | ");
+			Serial.print(wet2);
+			Serial.print(" | ");
+			Serial.print(dry2);
+			Serial.print(" || ");
+			Serial.print("Input Amplitude: ");
+			if (peak.available()) Serial.print(peak.read());
+			else Serial.print("     ");
             Serial.println();
 		#endif
 	#endif
@@ -442,7 +447,7 @@ void setupMixers() {
 
 void setupCombine() {
 	float controlB = analogRead(CONTROL1B);
-	float controlA = analogRead(CONTROL1A);
+	//float controlA = analogRead(CONTROL1A);
 	controlB = map(controlB, 0, 1023, COMBINE_FREQ_MIN, COMBINE_FREQ_MAX);
 	waveform.begin(WAVEFORM_SINE);
 	waveform.frequency(controlB);;
