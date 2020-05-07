@@ -18,13 +18,9 @@
 #include <Audio.h>
 #include <Wire.h>
 #include <SPI.h>
-#include <SD.h>
 #include <SerialFlash.h>
 #include <Bounce.h>
 #include <LiquidCrystal.h>
-
-#include "AudioConnections.h"
-
 
 // debug mode prints the status of the pedal over serial
 //#define _DEBUGMODE_
@@ -32,6 +28,11 @@
 #ifdef _EFFECTDETAILS_
 	#define _DEBUGMODE_
 #endif
+
+
+// More audio objects are created in debug mode like a peak detector,
+//    so we need to #include this after the _DEBUGMODE_ definition
+#include "AudioConnections.h"
 
 
 // Variables and objects
@@ -61,6 +62,14 @@ int ctrl2A = analogRead(CONTROL2A);
 int ctrl2B = analogRead(CONTROL2B);
 int last2A, last2B;
 
+// value used for mixer volume on the effect. Bypass channel is set to 1.0 - wet
+float wet1, wet2 = 1.0;
+float dry1, dry2 = 0.0;
+
+// true when an effect is first selected in order to adjust mixers. Otherwise, mixers are controlled by
+//   effect parameter functions
+//bool e1First, e2First = true;
+
 // Objects for the LCD display and buttons
 LiquidCrystal lcd(0, 1, 2, 3, 4, 5);
 byte solid[8] = { B11111, B11111, B11111, B11111,
@@ -83,8 +92,8 @@ void setupReverb();
 void overdriveGain(float controlA, float controlB);
 void lowHighFilters(float controlA, float controlB);
 void lfoAdjust(float controlA, float controlB);
-void combineAdjust(float controlA, float controlB);
-void reverbAdjust(float controlA, float controlB);
+void combineAdjust(float controlB);
+void reverbAdjust(float controlB);
 
 void setup() {
 
@@ -101,8 +110,8 @@ void setup() {
 	AudioMemory(25);
 	sgtl5000.enable();
 	sgtl5000.inputSelect(AUDIO_INPUT_LINEIN);
-	sgtl5000.lineInLevel(9);
-	sgtl5000.volume(0.3);
+	sgtl5000.lineInLevel(LINE_IN_LEVEL);
+	sgtl5000.volume(OUTPUT_VOLUME);
 
 	setupLFO();
 	setupHighLowPass();
@@ -134,10 +143,12 @@ void loop() {
 	    e1Stomp.update();
 	    e2Stomp.update();
 
-		// adjust active effect
+		// cycle effect1 type
 		if (cycle1F.fallingEdge()) {
     		e1++;
     		if (e1 >= NUM_EFFECTS_E1) e1 = 0; // overflow
+
+			// set combine mode for e1 = 1 or 2 (e1=0 is square wave)
             switch(e1) {
                 case 1: // AND
                     combine.setCombineMode(AudioEffectDigitalCombine::AND);
@@ -149,6 +160,8 @@ void loop() {
                     break;
             }
     	}
+
+		// toogle if knobs should control effect1 or high/low pass filters
     	else if (cycle1B.fallingEdge()) {
     		e1EfctCtrls = !e1EfctCtrls;
     	}
@@ -183,16 +196,21 @@ void loop() {
 //------------------------------------------
 
 	    if (e1Active) {
+			if (e1EfctCtrls) {
+				wet1 = analogRead(CONTROL1A) / 1023.0;
+				dry1 = 1.0 - wet1;
+			}
+
 	    	switch(e1) {
 	    		case 0: // square wave
-	    			effect1.gain(0, 0.0);
-	    			effect1.gain(1, 1.0);
+	    			effect1.gain(0, dry1);
+	    			effect1.gain(1, wet1);
 	    			effect1.gain(2, 0.0);
 	    		case 1:
 	    		case 2:
-	    			effect1.gain(0, 0.0);
+	    			effect1.gain(0, dry1);
 	    			effect1.gain(1, 0.0);
-	    			effect1.gain(2, 1.0);
+	    			effect1.gain(2, wet1);
 	    			break;
 	    		default:
 	    			break;
@@ -207,8 +225,10 @@ void loop() {
 	    if (e2Active) {
 	    	switch(e2) {
                 case 0: // reverb
-                    effect2.gain(0, 0.0);
-                    effect2.gain(1, 1.0);
+					wet2 = analogRead(CONTROL2A) / 1023.0;
+					dry2 = 1.0 - wet2;
+                    effect2.gain(0, dry2);
+                    effect2.gain(1, wet2);
                     effect2.gain(2, 0.0);
                     break;
                 case 1: // LFO
@@ -231,6 +251,8 @@ void loop() {
 		if (e1Active || !e1EfctCtrls) {
 			ctrl1A = analogRead(CONTROL1A);
 			ctrl1B = analogRead(CONTROL1B);
+
+			// check if value has changed significantly
 			if (ctrl1A < (last1A - CTRL_SENS) || ctrl1A > (last1A + CTRL_SENS)) {
 				last1A = ctrl1A;
 				ctrlChange = true;
@@ -239,6 +261,8 @@ void loop() {
 				last1B = ctrl1B;
 				ctrlChange = true;
 			}
+
+			// if value has changed significantly, then modify parameters of the effect
 			if (ctrlChange) {
 				if (e1EfctCtrls) {
 					switch (e1) {
@@ -246,7 +270,7 @@ void loop() {
 							break;
 						case 1: // AND
 						case 2: // OR
-							combineAdjust((float)ctrl1A, (float)ctrl1B);
+							combineAdjust((float)ctrl1B);
 							break;
 						default: // panic
 							break; 
@@ -273,7 +297,7 @@ void loop() {
 			if (ctrlChange) {
 				switch (e2) {
 					case 0: // Reverb
-						reverbAdjust((float)ctrl2A, (float)ctrl2B);
+						reverbAdjust((float)ctrl2B);
 						break;
 					case 1: // LFO
 						lfoAdjust((float)ctrl2A, (float)ctrl2B);
@@ -300,7 +324,7 @@ void loop() {
 		// 2nd line
 		switch(e2) {
 			case 0: // Reverb
-				lcd.print("Sze Dmp");
+				lcd.print("Mix Sze");
 				break;
 			case 1: // LFO
 				lcd.print("Rng Spd");
@@ -313,11 +337,11 @@ void loop() {
 		if (e1EfctCtrls) {
 			switch(e1) {
 				case 0: // Square wave
-					lcd.print("       ");
+					lcd.print("Mix    ");
 					break;
 				case 1: // AND
 				case 2: // OR
-					lcd.print("   Tone");
+					lcd.print("Mix Tone");
 					break;
 				default:
 					break;
@@ -341,16 +365,20 @@ void loop() {
     		Serial.print(effect2Types[e2]);
     		Serial.print(" || Current E1: ");
     		Serial.print(effect1Types[e1]);
-    		Serial.print(" || Control status: ");
-    		Serial.print(ctrl2A);
-    		Serial.print(" | ");
-    		Serial.print(ctrl2B);
-    		Serial.print(" | ");
-    		Serial.print(ctrl1A);
-    		Serial.print(" | ");
-    		Serial.print(ctrl1B);
-    		Serial.print(" || Memory Usage Max: ");
-    		Serial.print(AudioMemoryUsageMax());
+    		// Serial.print(" || Memory Usage Max: ");
+    		// Serial.print(AudioMemoryUsageMax());
+			Serial.print("|| Mix (w1, d1, w2, d2): ");
+			Serial.print(wet1);
+			Serial.print(" | ");
+			Serial.print(dry1);
+			Serial.print(" | ");
+			Serial.print(wet2);
+			Serial.print(" | ");
+			Serial.print(dry2);
+			Serial.print(" || ");
+			Serial.print("Input Amplitude: ");
+			if (peak.available()) Serial.print(peak.read());
+			else Serial.print("     ");
             Serial.println();
 		#endif
 	#endif
@@ -419,7 +447,7 @@ void setupMixers() {
 
 void setupCombine() {
 	float controlB = analogRead(CONTROL1B);
-	float controlA = analogRead(CONTROL1A);
+	//float controlA = analogRead(CONTROL1A);
 	controlB = map(controlB, 0, 1023, COMBINE_FREQ_MIN, COMBINE_FREQ_MAX);
 	waveform.begin(WAVEFORM_SINE);
 	waveform.frequency(controlB);;
@@ -428,10 +456,9 @@ void setupCombine() {
 }
 
 void setupReverb() {
-	float controlA = analogRead(CONTROL2A) / 1023;
 	float controlB = analogRead(CONTROL2B) / 1023;
-	freeverb.roomsize(controlA);
-	freeverb.damping(controlB);
+	freeverb.roomsize(controlB);
+	freeverb.damping(1.0);
 }
 
 // PARAMETER ADJUSTMENT FUNCTIONS
@@ -466,7 +493,7 @@ void lfoAdjust(float controlA, float controlB) {
     #endif
 }
 
-void combineAdjust(float controlA, float controlB) {
+void combineAdjust(float controlB) {
 	controlB = map(controlB, 0, 1023, COMBINE_FREQ_MIN, COMBINE_FREQ_MAX);
 	waveform.frequency(controlB);
    #ifdef _EFFECTDETAILS_
@@ -477,10 +504,8 @@ void combineAdjust(float controlA, float controlB) {
     
 }
 
-void reverbAdjust(float controlA, float controlB) {
-	controlA = controlA / 1023;
+void reverbAdjust(float controlB) {
 	controlB = controlB / 1023;
 
-	freeverb.roomsize(controlA);
-	freeverb.damping(controlB);
+	freeverb.roomsize(controlB);
 }
