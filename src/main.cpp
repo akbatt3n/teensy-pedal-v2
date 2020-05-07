@@ -323,7 +323,7 @@ void loop() {
 		// 2nd line
 		switch(e2) {
 			case 0: // Reverb
-				lcd.print("Sze Dmp");
+				lcd.print("Mix Sze");
 				break;
 			case 1: // LFO
 				lcd.print("Rng Spd");
@@ -336,11 +336,11 @@ void loop() {
 		if (e1EfctCtrls) {
 			switch(e1) {
 				case 0: // Square wave
-					lcd.print("       ");
+					lcd.print("Mix    ");
 					break;
 				case 1: // AND
 				case 2: // OR
-					lcd.print("   Tone");
+					lcd.print("Mix Tone");
 					break;
 				default:
 					break;
