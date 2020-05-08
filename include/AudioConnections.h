@@ -16,7 +16,7 @@ const int knobPins[] = {CONTROL1A, CONTROL1B, CONTROL2A, CONTROL2B};
 
 #define COMBINE_MODE (AudioEffectDigitalCombine::AND)
 #define GRANULAR_MEMORY_SIZE 6615
-#define GRANULAR_LENGTH (GRANULAR_MEMORY_SIZE/44100)
+#define GRANULAR_LENGTH 0.15 // GRANULAR_MEMORY_SIZE / 44,100 (size of array / standard sample rate of 44.1K)
 
 #define LINE_IN_LEVEL 9
 #define OUTPUT_VOLUME 0.3

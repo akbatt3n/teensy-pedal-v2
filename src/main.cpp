@@ -21,7 +21,7 @@
 
 // debug mode prints the status of the pedal over serial
 // _EFFECTDETAILS_ provides in dept details on the status of specific effects
-//#define _DEBUGMODE_
+#define _DEBUGMODE_
 //#define _EFFECTDETAILS_
 #ifdef _EFFECTDETAILS_
 	#define _DEBUGMODE_
