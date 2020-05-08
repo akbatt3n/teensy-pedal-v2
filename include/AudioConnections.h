@@ -14,7 +14,14 @@ const int buttonPins[] = {E1_STOMP, E2_STOMP, CYCLE_2B, CYCLE_2F, CYCLE_1B, CYCL
 const int knobPins[] = {CONTROL1A, CONTROL1B, CONTROL2A, CONTROL2B};
 
 #define GRANULAR_MEMORY_SIZE 12800
-#define GRANULAR_LENGTH 290 // GRANULAR_MEMORY_SIZE*100 / 44,100 (size of array*100 / standard sample rate of 44.1K)
+// GRANULAR_MEMORY_SIZE*100 / 44,100 (size of array*100 / standard sample rate of 44.1K)
+#define GRANULAR_LENGTH 290
+
+// constants for the digital combine object
+#define OR 0
+#define XOR 1
+#define AND 2
+#define MODULO 3
 
 #define LINE_IN_LEVEL 9
 #define OUTPUT_VOLUME 0.3
@@ -64,12 +71,13 @@ const int knobPins[] = {CONTROL1A, CONTROL1B, CONTROL2A, CONTROL2B};
 	AudioConnection          patchCord17(highPass, 2, out, 0);
 	AudioConnection          patchCord18(highPass, 2, out, 1);
 
-	AudioAnalyzePeak         peakInput;          //xy=332,113
+#ifdef _DEBUGMODE_
+	AudioAnalyzePeak         peakInput;
 	AudioConnection          patchCord19(in, 1, peakInput, 0);
 	AudioAnalyzePeak         peakGran;
 	AudioConnection			 patchCord20(granular, peakGran);
 	AudioAnalyzePeak		 peakCombine;
 	AudioConnection			 patchCord21(combine, peakCombine);
-	
+#endif	
 // GUItool: end automatically generated code
 //-------------------------------------------------------------------

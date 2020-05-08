@@ -2,14 +2,25 @@
 //-----------------------------------------------------------------------------
 // Written for the Teensy 3.6 microcontroller with the Teensy Audio Adaptor.
 // Utilizes the teensy audio library to apply effects to instrument signals, 
-// 		primarily guitar and bass, but could also be used for any electric 
-// 		instrument.
+//     primarily guitar and bass, but could also be used for any electric 
+//     instrument.
 // Requires a teensy 3.6, audio adaptor, an LCD, and various control 
-// 		potentiometers and buttons.
+//     potentiometers and buttons.
+//-----------------------------------------------------------------------------
+// For those who aren't aware, Arduino code is just C++ and the IDE 
+//     automatically adds #include <Arduino.h> when compiling. You can save your
+//     programs as .cpp files while adding the #include at the top. You also
+//     need to put function headers at the top (above where you call them for
+//     the first time) if you weren't already.
 //-----------------------------------------------------------------------------
 // Connections to remember:
-// Effect1's and Effect2's channel 0 is bypass. e2 indicates the effect, but is
-// zero-indexed. When setting a channel to activate an effect, use e2+1
+// Effect1's and Effect2's channel 0 is bypass. e1/e2 indicates the effect, but
+// are zero-indexed (e1=0 means square wave generator is selected ). When setting
+// a channel to activate an effect, use e1+1 (or e2+1).
+// 
+// BitL and BitH (e1 = 1 and 2) use the same objects and thus use the same mixer
+// connection, audio objects, and many of the same settings. The only difference
+// is whether the granulizer should speed up or slow down its signal.
 
 #include <Arduino.h>
 #include <Audio.h>
@@ -77,7 +88,7 @@ Bounce cycle2B = Bounce(CYCLE_2B, 5);
 Bounce e2Stomp = Bounce(E2_STOMP, 5);
 Bounce e1Stomp = Bounce(E1_STOMP, 5);
 
-// function declerations. These are for initializing the audio objects
+// function declerations for initializing the audio objects
 void setupLFO();
 void setupHighLowPass();
 void setupOverdrive();
@@ -127,6 +138,8 @@ void setup() {
 
 void loop() {
 
+	// We don't need to update the controls as fast as possible since most of 
+	// the time they aren't changing at all. Also saves some resources.
 	if (control < CONTROL_CHECK) {
 		control++;
 		delay(20);
@@ -134,8 +147,10 @@ void loop() {
 	else {
 		control = 0;
 
-// UPDATE CONTROLS AND CONTROL VARIABLES
-//---------------------------------------
+// UPDATE CONTROLS AND EFFECT STATE VARIABLES
+// Updates the stomp switches as well as the effect selection buttons and their
+// corresponding variables.
+//-----------------------------------------------------------------------------
 		cycle1F.update();
 	    cycle1B.update();
 	    cycle2F.update();
@@ -182,8 +197,11 @@ void loop() {
 	    }
 
 
-// UPDATE MIXERS BASED ON CONTROL VARIABLES
-//------------------------------------------
+// UPDATE MIXERS BASED ON STATE VARIABLES & MIX CONTROL
+// changes the mixer's inputs based on what effect is selected. For effects
+// with a wet/dry mix, this section reads the knob and calculates the proper
+// mix to apply.
+//-----------------------------------------------------------------------------
 
 	    if (e1Active) {
 			if (e1EfctCtrls) {
@@ -198,7 +216,7 @@ void loop() {
 	    			effect1.gain(1, wet1);
 	    			effect1.gain(2, 0.0);
 	    		case 1:
-	    		case 2: // case 1/2 both use the same audio object
+	    		case 2: // BitL/BitH both use the same audio object
 					granular.beginPitchShift(GRANULAR_LENGTH);
 	    			effect1.gain(0, dry1);
 	    			effect1.gain(1, 0.0);
@@ -208,7 +226,8 @@ void loop() {
 	    			break;
 	    	}
 	    }
-	    else {
+	    else { // effect1 off, signal bypasses audio objects
+			granular.stop();
 	    	effect1.gain(0, 1.0);
 	    	effect1.gain(1, 0.0);
 	    	effect1.gain(2, 0.0);
@@ -232,7 +251,7 @@ void loop() {
                     break;
             }
 	    }
-	    else {
+	    else { // effect2 off, signal bypasses audio objects
 	    	effect2.gain(0, 1.0);
             effect2.gain(1, 0.0);
             effect2.gain(2, 0.0);
@@ -240,11 +259,15 @@ void loop() {
 
 // ADJUST PARAMETERS BASED ON CONTROL VARIABLES
 //-------------------------------------------
+		// update effect parameters if effect1 is active, or if knobs are set
+		// to adjust high/low pass filters. These are active even if no effect
+		// is active
 		if (e1Active || !e1EfctCtrls) {
 			ctrl1A = analogRead(CONTROL1A);
 			ctrl1B = analogRead(CONTROL1B);
 
-			// check if value has changed significantly
+			// check if value has changed significantly. If it has, set last1x
+			// this way turning the knob slowly will still trigger ctrlChange
 			if (ctrl1A < (last1A - CTRL_SENS) || ctrl1A > (last1A + CTRL_SENS)) {
 				last1A = ctrl1A;
 				ctrlChange = true;
@@ -254,7 +277,8 @@ void loop() {
 				ctrlChange = true;
 			}
 
-			// if value has changed significantly, then modify parameters of the effect
+			// if value has changed significantly, then modify parameters of the
+			// effect
 			if (ctrlChange) {
 				if (e1EfctCtrls) {
 					switch (e1) {
@@ -275,6 +299,7 @@ void loop() {
 			ctrlChange = false;
 		}
 
+		// do the same thing as above for effect2
 		if (e2Active) {
 			ctrl2A = analogRead(CONTROL2A);
 			ctrl2B = analogRead(CONTROL2B);
@@ -301,8 +326,10 @@ void loop() {
 			ctrlChange = false;
 		}
 
-// PRINT STATUS TO LCD
-//--------------------
+// PRINT TO LCD
+// currently the effect names are from the global array but control names are
+// hardcoded here.
+//-----------------------------------------------------------------------------
 		lcd.setCursor(0, 0);
 		lcd.print(effect2Types[e2]); // names are 5 characters long
 		if (e2Active) lcd.write(byte(0)); else lcd.print(" ");
@@ -343,10 +370,13 @@ void loop() {
 			lcd.print("Hi  Low");
 		}
 
-	} //close the else statement for controls
+	} //close the else statement for control updates
 
 // CODE FOR DEBUGGING
-//-------------------
+// print details about the pedal state to serial output. This may not print
+// data that is helpful to you in its current config. You should change this
+// code to show the data that is helpful to you before debugging
+//-----------------------------------------------------------------------------
 	#ifdef _DEBUGMODE_
 		#ifdef _EFFECTDETAILS_
 			Serial.print(" || Input: ");
@@ -369,8 +399,8 @@ void loop() {
     		Serial.print(effect2Types[e2]);
     		Serial.print(" || Current E1: ");
     		Serial.print(effect1Types[e1]);
-    		// Serial.print(" || Memory Usage Max: ");
-    		// Serial.print(AudioMemoryUsageMax());
+    		Serial.print(" || Memory Usage Max: ");
+    		Serial.print(AudioMemoryUsageMax());
 			Serial.print("|| Mix (w1, d1, w2, d2): ");
 			Serial.print(wet1);
 			Serial.print(" | ");
@@ -389,6 +419,9 @@ void loop() {
 }
 
 // SETUP FUNCTIONS
+// these initialize the audio objects with some default values and some measured
+// ones. the point is to get everything running when the pedal turns on, rather
+// than when an effect is selected
 //-----------------------------------------------------------------------------
 void setupLFO() {
 	LFO.amplitude(0.9);
@@ -406,6 +439,8 @@ void setupHighLowPass() {
 }
 
 void setupOverdrive() {
+	// this effect is still referred to as overdive, even though it is setup to
+	// turn the input signal into a square wave
 	for (int i = 0; i < (WAVESHAPE_LENGTH-1)/2; i++) {
 		WAVESHAPE[i] = -0.95;
 		WAVESHAPE[WAVESHAPE_LENGTH - 1 - i] = 0.95;
@@ -417,6 +452,8 @@ void setupOverdrive() {
 }
 
 void setupMixers() {
+	// turn all mixer inputs off, then activate the one that corresponds to
+	// the active effect. 
     effect1.gain(0, 0.0);
     effect1.gain(1, 0.0);
     effect2.gain(0, 0.0);
@@ -450,10 +487,9 @@ void setupMixers() {
 }
 
 void setupCombine() {
-	// setup granular and combine objects
 	granular.begin(granularMem, GRANULAR_MEMORY_SIZE);
 	granular.setSpeed(1.0);
-	combine.setCombineMode(AudioEffectDigitalCombine::XOR);
+	combine.setCombineMode(AND);
 }
 
 void setupReverb() {
@@ -463,8 +499,12 @@ void setupReverb() {
 }
 
 // PARAMETER ADJUSTMENT FUNCTIONS
+// these are called when a knob has been turned and effect parameters need to 
+// be changed accordingly
 //-----------------------------------------------------------------------------
-void overdriveGain(float controlA, float controlB) {}
+void overdriveGain(float controlA, float controlB) {
+	// may be implemented in the future
+}
 
 void lowHighFilters(float controlA, float controlB) {
 	controlA = map(controlA, 0, 1023, LOWPASSMIN, LOWPASSMAX);
@@ -483,8 +523,9 @@ void lfoAdjust(float controlA, float controlB) {
 
 void combineAdjust(float controlB) {
 	// map controlB to 0-1, then 0-7.99, then 1-8.99
-	// this value will be converted to int, truncating the decimal so we only get int values
-	// this formula is used for BitH. BitL uses 1 divided by this formula.
+	// this value will be converted to int, truncating the decimal so we only 
+	// get int values. This formula is used for BitH. BitL uses 1 divided by 
+	// the resulting int
 	controlB = ((controlB / 1023.0) * 7.99) + 1;
 
 	if (e1 == 1) {
@@ -493,13 +534,11 @@ void combineAdjust(float controlB) {
 	else if (e1 == 2) {
 		controlB = (int) controlB;
 	}
-
 	// set speedup/slowdown of granular object to value of controlB
 	granular.setSpeed(controlB);    
 }
 
 void reverbAdjust(float controlB) {
 	controlB = controlB / 1023;
-
 	freeverb.roomsize(controlB);
 }
