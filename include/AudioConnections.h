@@ -1,5 +1,4 @@
 #include <Arduino.h>
-#include <Audio.h>
 
 #define E1_STOMP 31
 #define E2_STOMP 32
@@ -14,9 +13,8 @@
 const int buttonPins[] = {E1_STOMP, E2_STOMP, CYCLE_2B, CYCLE_2F, CYCLE_1B, CYCLE_1F};
 const int knobPins[] = {CONTROL1A, CONTROL1B, CONTROL2A, CONTROL2B};
 
-#define COMBINE_MODE (AudioEffectDigitalCombine::AND)
-#define GRANULAR_MEMORY_SIZE 6615
-#define GRANULAR_LENGTH 0.15 // GRANULAR_MEMORY_SIZE / 44,100 (size of array / standard sample rate of 44.1K)
+#define GRANULAR_MEMORY_SIZE 12800
+#define GRANULAR_LENGTH 290 // GRANULAR_MEMORY_SIZE*100 / 44,100 (size of array*100 / standard sample rate of 44.1K)
 
 #define LINE_IN_LEVEL 9
 #define OUTPUT_VOLUME 0.3
@@ -51,23 +49,27 @@ const int knobPins[] = {CONTROL1A, CONTROL1B, CONTROL2A, CONTROL2B};
 	AudioConnection          patchCord2(in, 1, waveshape, 0);
 	AudioConnection          patchCord3(in, 1, combine, 0);
 	AudioConnection          patchCord4(LFO, 0, LFOFilter, 1);
-	AudioConnection          patchCord5(granular, 0, combine, 1);
-	AudioConnection          patchCord6(waveshape, amp);
-	AudioConnection          patchCord7(LFOFilter, 1, effect2, 2);
-	AudioConnection          patchCord8(combine, 0, effect1, 2);
-	AudioConnection          patchCord9(freeverb, 0, effect2, 1);
-	AudioConnection          patchCord10(amp, 0, effect1, 1);
-	AudioConnection          patchCord11(lowPass, 0, highPass, 0);
-	AudioConnection          patchCord12(effect2, 0, lowPass, 0);
-	AudioConnection          patchCord13(effect1, 0, LFOFilter, 0);
-	AudioConnection          patchCord14(effect1, 0, effect2, 0);
-	AudioConnection          patchCord15(effect1, freeverb);
-	AudioConnection          patchCord16(highPass, 2, out, 0);
-	AudioConnection          patchCord17(highPass, 2, out, 1);
-	#ifdef _DEBUGMODE_
-		AudioAnalyzePeak         peak;          //xy=332,113
-		AudioConnection          patchCord18(in, 1, peak, 0);
-	#endif
+	AudioConnection          patchCord5(in, 1, granular, 0);
+	AudioConnection          patchCord6(granular, 0, combine, 1);
+	AudioConnection          patchCord7(waveshape, amp);
+	AudioConnection          patchCord8(LFOFilter, 1, effect2, 2);
+	AudioConnection          patchCord9(combine, 0, effect1, 2);
+	AudioConnection          patchCord10(freeverb, 0, effect2, 1);
+	AudioConnection          patchCord11(amp, 0, effect1, 1);
+	AudioConnection          patchCord12(lowPass, 0, highPass, 0);
+	AudioConnection          patchCord13(effect2, 0, lowPass, 0);
+	AudioConnection          patchCord14(effect1, 0, LFOFilter, 0);
+	AudioConnection          patchCord15(effect1, 0, effect2, 0);
+	AudioConnection          patchCord16(effect1, freeverb);
+	AudioConnection          patchCord17(highPass, 2, out, 0);
+	AudioConnection          patchCord18(highPass, 2, out, 1);
+
+	AudioAnalyzePeak         peakInput;          //xy=332,113
+	AudioConnection          patchCord19(in, 1, peakInput, 0);
+	AudioAnalyzePeak         peakGran;
+	AudioConnection			 patchCord20(granular, peakGran);
+	AudioAnalyzePeak		 peakCombine;
+	AudioConnection			 patchCord21(combine, peakCombine);
 	
 // GUItool: end automatically generated code
 //-------------------------------------------------------------------

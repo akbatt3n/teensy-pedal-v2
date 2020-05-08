@@ -21,8 +21,9 @@
 
 // debug mode prints the status of the pedal over serial
 // _EFFECTDETAILS_ provides in dept details on the status of specific effects
-#define _DEBUGMODE_
-//#define _EFFECTDETAILS_
+// #define _DEBUGMODE_
+// #define _EFFECTDETAILS_
+
 #ifdef _EFFECTDETAILS_
 	#define _DEBUGMODE_
 #endif
@@ -33,7 +34,7 @@
 
 // Variables and objects
 //-----------------------------------------------------------------------------
-int8_t control = 0;
+int control = 0;
 
 
 float WAVESHAPE[WAVESHAPE_LENGTH] = {};
@@ -347,6 +348,18 @@ void loop() {
 // CODE FOR DEBUGGING
 //-------------------
 	#ifdef _DEBUGMODE_
+		#ifdef _EFFECTDETAILS_
+			Serial.print(" || Input: ");
+			if (peakInput.available()) Serial.print(peakInput.read());
+			else Serial.print("x.xx");
+			Serial.print(" || Granulizer Output: ");
+			if (peakGran.available()) Serial.print(peakGran.read());
+			else Serial.print("x.xx");
+			Serial.print(" || Combine Output: ");
+			if (peakCombine.available()) Serial.print(peakCombine.read());
+			else Serial.print("x.xx");
+			Serial.println();
+		#endif
     	#ifndef _EFFECTDETAILS_
     		Serial.print("Effect 1 Active: ");
     		Serial.print(e1Active);
@@ -437,18 +450,10 @@ void setupMixers() {
 }
 
 void setupCombine() {
-	float controlB = analogRead(CONTROL1B);
-
-	// map controlB to 0-1, then 0-7.99, then 1-8.99
-	// this value will be converted to int, truncating the decimal so we only get int values
-	// this formula is used for BitH. BitL uses 1 divided by this formula.
-	controlB = ((controlB / 1023.0) * 7.99) + 1;
-	controlB = 1 / (int) controlB;
-
 	// setup granular and combine objects
 	granular.begin(granularMem, GRANULAR_MEMORY_SIZE);
-	granular.setSpeed(controlB);
-	combine.setCombineMode(COMBINE_MODE);
+	granular.setSpeed(1.0);
+	combine.setCombineMode(AudioEffectDigitalCombine::XOR);
 }
 
 void setupReverb() {
@@ -465,14 +470,6 @@ void lowHighFilters(float controlA, float controlB) {
 	controlA = map(controlA, 0, 1023, LOWPASSMIN, LOWPASSMAX);
 	controlB = map(controlB, 0, 1023, HIGHPASSMIN, HIGHPASSMAX);
 
-    #ifdef _EFFECTDETAILS_
-        Serial.print("LowPass Freq: ");
-        Serial.print(controlA);
-        Serial.print("HighPass Freq: ");
-        Serial.print(controlB);
-        Serial.println();
-    #endif
-
 	lowPass.frequency(controlA);
 	highPass.frequency(controlB);
 }
@@ -482,11 +479,6 @@ void lfoAdjust(float controlA, float controlB) {
 	controlB = map(controlB, 0.0, 1023.0, 0.01, LFO_MAX_FREQ);
 	LFOFilter.octaveControl(controlA);
 	LFO.frequency(controlB);
-    
-    #ifdef _EFFECTDETAILS_
-        Serial.print("CtrlB: ");
-        Serial.print(controlB);
-    #endif
 }
 
 void combineAdjust(float controlB) {
@@ -494,22 +486,16 @@ void combineAdjust(float controlB) {
 	// this value will be converted to int, truncating the decimal so we only get int values
 	// this formula is used for BitH. BitL uses 1 divided by this formula.
 	controlB = ((controlB / 1023.0) * 7.99) + 1;
+
 	if (e1 == 1) {
-		controlB = 1 / (int) controlB;
+		controlB = 1.0 / (int) controlB;
 	}
-	else {
+	else if (e1 == 2) {
 		controlB = (int) controlB;
 	}
 
 	// set speedup/slowdown of granular object to value of controlB
-	granular.setSpeed(GRANULAR_LENGTH);
-
-   #ifdef _EFFECTDETAILS_
-        Serial.print(" | Deviation: ");
-        Serial.print(controlB);
-        Serial.println();
-   #endif
-    
+	granular.setSpeed(controlB);    
 }
 
 void reverbAdjust(float controlB) {
