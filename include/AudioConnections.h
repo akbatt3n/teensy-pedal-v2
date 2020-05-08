@@ -1,4 +1,5 @@
-#include "Arduino.h"
+#include <Arduino.h>
+#include <Audio.h>
 
 #define E1_STOMP 31
 #define E2_STOMP 32
@@ -12,6 +13,10 @@
 #define CONTROL2B A18 // pin 37
 const int buttonPins[] = {E1_STOMP, E2_STOMP, CYCLE_2B, CYCLE_2F, CYCLE_1B, CYCLE_1F};
 const int knobPins[] = {CONTROL1A, CONTROL1B, CONTROL2A, CONTROL2B};
+
+#define COMBINE_MODE (AudioEffectDigitalCombine::AND)
+#define GRANULAR_MEMORY_SIZE 6615
+#define GRANULAR_LENGTH (GRANULAR_MEMORY_SIZE/44100)
 
 #define LINE_IN_LEVEL 9
 #define OUTPUT_VOLUME 0.3
@@ -31,7 +36,7 @@ const int knobPins[] = {CONTROL1A, CONTROL1B, CONTROL2A, CONTROL2B};
 	AudioControlSGTL5000     sgtl5000;     //xy=365,52
 	AudioInputI2S            in;           //xy=73,116
 	AudioSynthWaveformSine   LFO;          //xy=91,436
-	AudioSynthWaveform       waveform;      //xy=97,224
+	AudioEffectGranular      granular;      //xy=148,226
 	AudioEffectWaveshaper    waveshape;     //xy=253,140
 	AudioFilterStateVariable LFOFilter;        //xy=254,431
 	AudioEffectDigitalCombine combine;       //xy=255,199
@@ -46,7 +51,7 @@ const int knobPins[] = {CONTROL1A, CONTROL1B, CONTROL2A, CONTROL2B};
 	AudioConnection          patchCord2(in, 1, waveshape, 0);
 	AudioConnection          patchCord3(in, 1, combine, 0);
 	AudioConnection          patchCord4(LFO, 0, LFOFilter, 1);
-	AudioConnection          patchCord5(waveform, 0, combine, 1);
+	AudioConnection          patchCord5(granular, 0, combine, 1);
 	AudioConnection          patchCord6(waveshape, amp);
 	AudioConnection          patchCord7(LFOFilter, 1, effect2, 2);
 	AudioConnection          patchCord8(combine, 0, effect1, 2);
