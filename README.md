@@ -12,7 +12,7 @@ The pedal is still based on the Teensy 3.6 and audio adaptor from pjrc.com. Curr
 ## v2.0.1
   * added wet/dry mix to most effects (all but LFO)
   * updated interface for wet/dry mix
-  * moved project to PlatformIO
+  * moved project to PlatformIO (for uploading without PlatformIO, put all .cpp/.h files from src, include, and lib into a single folder and use the regular Arduino IDE upload process)
   * moved constants and audio objects to header file
   * reduced control sensitivity to account for analogRead() impercise measurements
 
