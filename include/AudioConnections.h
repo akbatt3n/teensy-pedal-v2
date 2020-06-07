@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <Audio.h>
 
 #define E1_STOMP 31
 #define E2_STOMP 32
@@ -13,9 +14,10 @@
 const int buttonPins[] = {E1_STOMP, E2_STOMP, CYCLE_2B, CYCLE_2F, CYCLE_1B, CYCLE_1F};
 const int knobPins[] = {CONTROL1A, CONTROL1B, CONTROL2A, CONTROL2B};
 
-#define GRANULAR_MEMORY_SIZE 12800
-// GRANULAR_MEMORY_SIZE*100 / 44,100 (size of array*100 / standard sample rate of 44.1K)
-#define GRANULAR_LENGTH 290
+#define GRANULAR_MEMORY_SIZE 6615
+// GRANULAR_MEMORY_SIZE*100 / 44,100
+#define GRANULAR_LENGTH 150
+#define GRANULAR_ATTENUATION 0.05
 
 // constants for the digital combine object
 #define OR 0
@@ -25,14 +27,15 @@ const int knobPins[] = {CONTROL1A, CONTROL1B, CONTROL2A, CONTROL2B};
 
 #define LINE_IN_LEVEL 9
 #define OUTPUT_VOLUME 0.3
+
 #define WAVESHAPE_LENGTH 65
 #define LFO_MAX_FREQ 5
+
 #define HIGHPASSMAX 7000
-#define HIGHPASSMIN 10.25
+#define HIGHPASSMIN 20
 #define LOWPASSMAX 7000
-#define LOWPASSMIN 10.25
-#define COMBINE_FREQ_MIN 656
-#define COMBINE_FREQ_MAX 5000
+#define LOWPASSMIN 20
+
 #define CONTROL_CHECK 15
 #define CTRL_SENS 20
 
@@ -42,6 +45,7 @@ const int knobPins[] = {CONTROL1A, CONTROL1B, CONTROL2A, CONTROL2B};
 	AudioInputI2S            in;           //xy=73,116
 	AudioSynthWaveformSine   LFO;          //xy=91,436
 	AudioEffectGranular      granular;      //xy=148,226
+	AudioAmplifier           granAtt;
 	AudioEffectWaveshaper    waveshape;     //xy=253,140
 	AudioFilterStateVariable LFOFilter;        //xy=254,431
 	AudioEffectDigitalCombine combine;       //xy=255,199
@@ -57,7 +61,7 @@ const int knobPins[] = {CONTROL1A, CONTROL1B, CONTROL2A, CONTROL2B};
 	AudioConnection          patchCord3(in, 1, combine, 0);
 	AudioConnection          patchCord4(LFO, 0, LFOFilter, 1);
 	AudioConnection          patchCord5(in, 1, granular, 0);
-	AudioConnection          patchCord6(granular, 0, combine, 1);
+	AudioConnection          patchCord6(granular, granAtt);
 	AudioConnection          patchCord7(waveshape, amp);
 	AudioConnection          patchCord8(LFOFilter, 1, effect2, 2);
 	AudioConnection          patchCord9(combine, 0, effect1, 2);
@@ -70,14 +74,15 @@ const int knobPins[] = {CONTROL1A, CONTROL1B, CONTROL2A, CONTROL2B};
 	AudioConnection          patchCord16(effect1, freeverb);
 	AudioConnection          patchCord17(highPass, 2, out, 0);
 	AudioConnection          patchCord18(highPass, 2, out, 1);
+	AudioConnection          patchCord19(granAtt, 0, combine, 1);
 
 #ifdef _DEBUGMODE_
 	AudioAnalyzePeak         peakInput;
-	AudioConnection          patchCord19(in, 1, peakInput, 0);
+	AudioConnection          patchCord30(in, 1, peakInput, 0);
 	AudioAnalyzePeak         peakGran;
-	AudioConnection			 patchCord20(granular, peakGran);
+	AudioConnection			 patchCord31(granular, peakGran);
 	AudioAnalyzePeak		 peakCombine;
-	AudioConnection			 patchCord21(combine, peakCombine);
+	AudioConnection			 patchCord32(combine, peakCombine);
 #endif	
 // GUItool: end automatically generated code
 //-------------------------------------------------------------------

@@ -30,7 +30,7 @@
 #include <Bounce.h>
 #include <LiquidCrystal.h>
 
-// debug mode prints the status of the pedal over serial
+// _DEBUGMODE_ prints the status of the pedal over serial
 // _EFFECTDETAILS_ provides in dept details on the status of specific effects
 // #define _DEBUGMODE_
 // #define _EFFECTDETAILS_
@@ -489,7 +489,8 @@ void setupMixers() {
 void setupCombine() {
 	granular.begin(granularMem, GRANULAR_MEMORY_SIZE);
 	granular.setSpeed(1.0);
-	combine.setCombineMode(AND);
+	combine.setCombineMode(OR);
+	granAtt.gain(GRANULAR_ATTENUATION);
 }
 
 void setupReverb() {
