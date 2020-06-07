@@ -15,9 +15,8 @@ const int buttonPins[] = {E1_STOMP, E2_STOMP, CYCLE_2B, CYCLE_2F, CYCLE_1B, CYCL
 const int knobPins[] = {CONTROL1A, CONTROL1B, CONTROL2A, CONTROL2B};
 
 #define GRANULAR_MEMORY_SIZE 6615
-// GRANULAR_MEMORY_SIZE*100 / 44,100
 #define GRANULAR_LENGTH 150
-#define GRANULAR_ATTENUATION 0.05
+#define GRANULAR_ATTENUATION 0.01
 
 // constants for the digital combine object
 #define OR 0
@@ -37,7 +36,7 @@ const int knobPins[] = {CONTROL1A, CONTROL1B, CONTROL2A, CONTROL2B};
 #define LOWPASSMIN 20
 
 #define CONTROL_CHECK 15
-#define CTRL_SENS 20
+#define CTRL_SENS 25
 
 // GUItool: begin automatically generated code
 //-------------------------------------------------------------------

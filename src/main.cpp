@@ -50,6 +50,7 @@ int control = 0;
 
 float WAVESHAPE[WAVESHAPE_LENGTH] = {};
 int16_t granularMem[GRANULAR_MEMORY_SIZE];
+float deviations[] = {1, 2};
 
 bool ctrlChange = false;
 bool e1Active, e2Active = false;
@@ -489,7 +490,7 @@ void setupMixers() {
 void setupCombine() {
 	granular.begin(granularMem, GRANULAR_MEMORY_SIZE);
 	granular.setSpeed(1.0);
-	combine.setCombineMode(OR);
+	combine.setCombineMode(XOR);
 	granAtt.gain(GRANULAR_ATTENUATION);
 }
 
@@ -523,20 +524,18 @@ void lfoAdjust(float controlA, float controlB) {
 }
 
 void combineAdjust(float controlB) {
-	// map controlB to 0-1, then 0-7.99, then 1-8.99
-	// this value will be converted to int, truncating the decimal so we only 
-	// get int values. This formula is used for BitH. BitL uses 1 divided by 
-	// the resulting int
-	controlB = ((controlB / 1023.0) * 7.99) + 1;
+	// map controlB to 0 - 3 integers only
+	controlB = (int) ((controlB / 1023.0) * 1.99);
 
+    // dev should be 1, 2, 4, or 8 taken from deviations and using controlB as an index
+    float dev = deviations[(int) controlB];
+
+    // invert dev for bit-L effect to get octaves down
 	if (e1 == 1) {
-		controlB = 1.0 / (int) controlB;
-	}
-	else if (e1 == 2) {
-		controlB = (int) controlB;
+		dev = 1.0 / dev;
 	}
 	// set speedup/slowdown of granular object to value of controlB
-	granular.setSpeed(controlB);    
+	granular.setSpeed(dev);    
 }
 
 void reverbAdjust(float controlB) {
